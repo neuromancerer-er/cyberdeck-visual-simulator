@@ -10,7 +10,7 @@ analysis through a cyberdeck's HUD.
 
 ## Run it
 
-- **Live:** [https://neuromancer-er.github.io/cyberdeck-visual-simulator/](https://neuromancer-er.github.io/cyberdeck-visual-simulator/)
+- **Live:** [https://github.com/neuromancerer-er/cyberdeck-visual-simulator](https://github.com/neuromancerer-er/cyberdeck-visual-simulator)
 - **Local:** download `index.html`, open in any modern browser. Press `F` for  
 fullscreen. Not currently built for mobile; ideally try on a desktop-equivalent platform.
 
