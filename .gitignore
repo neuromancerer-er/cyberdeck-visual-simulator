@@ -1,0 +1,14 @@
+# production stuff 
+
+docs/
+archive/
+notes/
+*.draft.md
+
+# OS / editor stuff
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.vscode/
+.idea/
