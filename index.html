@@ -1616,6 +1616,18 @@ registerScene('neuro', ({ stage, controlsEl }) => {
   buildConstruct();
   applyPalette(); // set initial CSS vars on stage element
 
+  // Apply HUD presentation CSS vars from params. Called at init so that a
+  // fresh scene load (reset) restores HUD scale/glow defaults — otherwise the
+  // inline CSS vars set by the sliders persist on the stage element across
+  // loadScene() and reset wouldn't visually take effect.
+  function applyHudVars() {
+    stage.style.setProperty('--hud-scale', params.hudScale);
+    stage.style.setProperty('--hud-glow', params.hudGlow);
+    stage.style.setProperty('--cardinal-scale', params.cardinalScale);
+    stage.style.setProperty('--watermark-scale', params.watermarkScale);
+  }
+  applyHudVars();
+
   // Clear all live tactical annotations + terrain labels + reset schedulers.
   // Does NOT touch params or rebuild controls — pure runtime state reset.
   // Call this whenever the construct shape changes so old annotations that
@@ -6746,12 +6758,25 @@ registerScene('neuro', ({ stage, controlsEl }) => {
       params.paletteName = paletteKeys[Math.floor(Math.random() * paletteKeys.length)];
       applyPalette();
 
+      // 1b) Randomize the construct shape (the other dropdown we DO touch).
+      const constructs = ['fortress', 'lattice', 'spire', 'ringtower', 'gridcube', 'pyramid', 'hub', 'crystal'];
+      params.construct = constructs[Math.floor(Math.random() * constructs.length)];
+      buildConstruct(); // HUD designation auto-updates each frame from params.construct
+
       // 2) Randomize EVERY numeric slider generically: roll within each
       //    slider's own declared min/max/step, set the input, and dispatch its
       //    'input' event so the existing onChange side effects all run. This
       //    automatically covers every current and future slider and respects
       //    each one's range. Toggles and non-palette dropdowns are untouched.
+      //    Excluded: HUD presentation sliders (never resize/reglow the HUD) and
+      //    line-weight sliders (most values look bad).
+      const SKIP_SLIDER_LABELS = new Set([
+        'hud scale', 'hud glow', 'cardinal size', 'watermark size',
+        'line weight', 'bg weight'
+      ]);
       controlsEl.querySelectorAll('input[type=range]').forEach(input => {
+        const label = input.closest('.control')?.querySelector('.control-label')?.textContent?.trim();
+        if (label && SKIP_SLIDER_LABELS.has(label)) return; // skip excluded sliders
         const min = parseFloat(input.min);
         const max = parseFloat(input.max);
         const step = parseFloat(input.step) || 0.01;
@@ -6763,15 +6788,15 @@ registerScene('neuro', ({ stage, controlsEl }) => {
         input.dispatchEvent(new Event('input', { bubbles: true }));
       });
 
-      // Any slider that rebuilt geometry (e.g. density) may have left
-      // annotations anchored to stale geometry — clear them for a clean slate.
+      // Any slider that rebuilt geometry (e.g. density) or the shape change
+      // above may have left annotations anchored to stale geometry — clear them.
       clearScene();
 
-      // 3) Sync the palette dropdown UI to the new value (sliders already
-      //    synced themselves via the dispatched events above).
+      // 3) Sync the dropdowns we changed (sliders synced themselves via events).
       controlsEl.querySelectorAll('select').forEach(sel => {
         const label = sel.closest('.control')?.querySelector('.control-label')?.textContent?.trim();
         if (label === 'theme') sel.value = params.paletteName;
+        if (label === 'shape') sel.value = params.construct;
       });
     },
     dispose() {
