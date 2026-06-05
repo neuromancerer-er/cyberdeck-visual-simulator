@@ -1655,47 +1655,68 @@ registerScene('neuro', ({ stage, controlsEl }) => {
         lineMatAmber
       ));
     } else if (params.construct === 'gridcube') {
-      // Massive subdivided cube — pure information lattice
+      // CUBE_Σ_8 — nested containment lattice. Concentric cube shells closing
+      // in on a bright suspended core, with sparse strut lines tying the shells
+      // together. Reads with depth (you see INTO it) and a clear focal point —
+      // a vault for data, not a uniform graph-paper box.
       const size = 10;
-      const subdivs = Math.max(4, Math.floor(10 * params.structureDensity + 2));
-      // Outer frame (amber for contrast)
+      const yCenter = 2;
+
+      // Outer frame (amber) — the silhouette / containment boundary.
       const outerGeo = new THREE.BoxGeometry(size, size, size);
       const outer = thickEdges(outerGeo, lineMatAmber);
       outerGeo.dispose();
-      outer.position.y = 2;
+      outer.position.y = yCenter;
       constructGroup.add(outer);
-      // Interior grid — three orthogonal sets of parallel lines
-      const half = size / 2;
-      const yCenter = 2;
-      const gridPts = [];
-      for (let i = 1; i < subdivs; i++) {
-        const t = (i / subdivs) * size - half;
-        // Lines along X axis (varying Y and Z)
-        for (let j = 1; j < subdivs; j++) {
-          const u = (j / subdivs) * size - half;
-          gridPts.push(
-            new THREE.Vector3(-half, yCenter + t, u),
-            new THREE.Vector3(half, yCenter + t, u)
-          );
-        }
-        // Lines along Y axis (varying X and Z)
-        for (let j = 1; j < subdivs; j++) {
-          const u = (j / subdivs) * size - half;
-          gridPts.push(
-            new THREE.Vector3(t, yCenter - half, u),
-            new THREE.Vector3(t, yCenter + half, u)
-          );
-        }
-        // Lines along Z axis (varying X and Y)
-        for (let j = 1; j < subdivs; j++) {
-          const u = (j / subdivs) * size - half;
-          gridPts.push(
-            new THREE.Vector3(t, yCenter + u, -half),
-            new THREE.Vector3(t, yCenter + u, half)
+
+      // Concentric inner shells. Count scales with density and reads PRIMARY —
+      // more density = a more deeply nested cage, brightening inward.
+      const shells = Math.max(2, Math.floor(4 * params.structureDensity + 1));
+      const shellSizes = [];
+      for (let s = 1; s <= shells; s++) {
+        // shrink from the outer frame toward the core, never reaching 0
+        const f = 1 - (s / (shells + 1));
+        const sz = size * f;
+        shellSizes.push(sz);
+        const sgeo = new THREE.BoxGeometry(sz, sz, sz);
+        // alternate primary/amber so the nesting rhythm reads as it spins
+        const shell = thickEdges(sgeo, s % 2 === 1 ? lineMat : lineMatAmber);
+        sgeo.dispose();
+        shell.position.y = yCenter;
+        // rotate alternate shells 45° on Y so they interlock rather than align
+        shell.rotation.y = (s % 2) * Math.PI / 4;
+        constructGroup.add(shell);
+      }
+
+      // Connective struts: short lines linking each shell's corners to the next
+      // shell in, threading the nest together (dim — secondary connective tissue).
+      const strutPts = [];
+      const sizesAll = [size, ...shellSizes];
+      for (let s = 0; s < sizesAll.length - 1; s++) {
+        const a = sizesAll[s] / 2, b = sizesAll[s + 1] / 2;
+        const corners = [[-1,-1,-1],[1,-1,-1],[1,-1,1],[-1,-1,1],[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1]];
+        for (const [cx, cy, cz] of corners) {
+          strutPts.push(
+            new THREE.Vector3(cx * a, yCenter + cy * a, cz * a),
+            new THREE.Vector3(cx * b, yCenter + cy * b, cz * b)
           );
         }
       }
-      constructGroup.add(thickSegment(gridPts, lineMatDim));
+      constructGroup.add(thickSegment(strutPts, lineMatDim));
+
+      // Suspended core at the center — the focal point the old version lacked.
+      const coreGeo = new THREE.OctahedronGeometry(1.1, 0);
+      const core = thickEdges(coreGeo, lineMatAmber);
+      coreGeo.dispose();
+      core.position.y = yCenter;
+      constructGroup.add(core);
+      // A faint inner core cage around it
+      const cageGeo = new THREE.BoxGeometry(2.2, 2.2, 2.2);
+      const cage = thickEdges(cageGeo, lineMat);
+      cageGeo.dispose();
+      cage.position.y = yCenter;
+      cage.rotation.y = Math.PI / 4;
+      constructGroup.add(cage);
     } else if (params.construct === 'pyramid') {
       // Stepped pyramid with subdivision rings on each face
       const tiers = Math.max(4, Math.floor(7 * params.structureDensity + 2));
@@ -1826,6 +1847,509 @@ registerScene('neuro', ({ stage, controlsEl }) => {
         [new THREE.Vector3(0, -4, 0), new THREE.Vector3(0, -4 + totalH, 0)],
         lineMatDim
       ));
+    } else if (params.construct === 'vault') {
+      // CRYPT_Δ0 — a single colossal circular blast-door, face-on.
+      // Concentric locking rings + radial bolts. Near-flat threshold. "Sealed."
+      const R = 8;
+      const depth = 1.4;
+      const ringCount = Math.max(3, Math.floor(4 * params.structureDensity + 2));
+      const yC = 2;
+      // Outer rim torus (amber)
+      const rimGeo = new THREE.TorusGeometry(R, 0.12, 6, 64);
+      const rim = thickEdges(rimGeo, lineMatAmber);
+      rimGeo.dispose();
+      rim.position.y = yC;
+      constructGroup.add(rim);
+      // Concentric locking rings, set slightly forward of the rim plane
+      for (let i = 0; i < ringCount; i++) {
+        const rr = R * (1 - (i + 1) / (ringCount + 1));
+        const rg = new THREE.TorusGeometry(rr, 0.05, 4, 48);
+        const ring = thickEdges(rg, i % 2 === 0 ? lineMat : lineMatAmber);
+        rg.dispose();
+        ring.position.set(0, yC, depth * 0.5 * (i / ringCount));
+        constructGroup.add(ring);
+      }
+      // Radial bolts from hub to rim — count scales with density
+      const boltCount = Math.max(8, Math.floor(8 * params.structureDensity + 6));
+      const boltPts = [];
+      for (let b = 0; b < boltCount; b++) {
+        const a = (b / boltCount) * Math.PI * 2;
+        boltPts.push(
+          new THREE.Vector3(Math.cos(a) * R * 0.18, yC + Math.sin(a) * R * 0.18, depth * 0.5),
+          new THREE.Vector3(Math.cos(a) * R, yC + Math.sin(a) * R, 0)
+        );
+      }
+      constructGroup.add(thickSegment(boltPts, lineMat));
+      // Central hub octahedron (the lock core)
+      const hubGeo = new THREE.OctahedronGeometry(1.1, 0);
+      const hub = thickEdges(hubGeo, lineMatAmber);
+      hubGeo.dispose();
+      hub.position.set(0, yC, depth * 0.6);
+      constructGroup.add(hub);
+      // A faint shallow back-plate cylinder to give it body
+      const plateGeo = new THREE.CylinderGeometry(R, R, depth, 32, 1, true);
+      const plate = thickEdges(plateGeo, lineMatDim);
+      plateGeo.dispose();
+      plate.rotation.x = Math.PI / 2;
+      plate.position.set(0, yC, -depth * 0.5);
+      constructGroup.add(plate);
+    } else if (params.construct === 'arcology') {
+      // HIVE_β9 — inverted ziggurat: wide canopy narrowing downward.
+      // Mirror of fortress; habitation hanging in the void.
+      const tiers = Math.max(3, Math.floor(5 * params.structureDensity + 2));
+      const topY = 6;
+      for (let i = 0; i < tiers; i++) {
+        const w = 12 - i * 1.8; // widest at top, narrowing down
+        const h = 1.4;
+        const box = new THREE.BoxGeometry(Math.max(2, w), h, Math.max(2, w));
+        const m = thickEdges(box, i === 0 ? lineMatAmber : lineMat);
+        box.dispose();
+        m.position.y = topY - i * 1.8;
+        constructGroup.add(m);
+        // Hanging strands beneath each tier corner (habitation cables)
+        if (i < tiers - 1) {
+          const hw = Math.max(2, w) / 2;
+          const strandPts = [];
+          const corners = [[-hw, -hw], [hw, -hw], [hw, hw], [-hw, hw]];
+          for (const [cx, cz] of corners) {
+            strandPts.push(
+              new THREE.Vector3(cx, topY - i * 1.8 - h / 2, cz),
+              new THREE.Vector3(cx * 0.6, topY - (i + 1) * 1.8 + h / 2, cz * 0.6)
+            );
+          }
+          constructGroup.add(thickSegment(strandPts, lineMatDim));
+        }
+      }
+      // Pendant node at the bottom point
+      const podGeo = new THREE.IcosahedronGeometry(0.9, 0);
+      const pod = thickEdges(podGeo, lineMatAmber);
+      podGeo.dispose();
+      pod.position.y = topY - tiers * 1.8 - 0.5;
+      constructGroup.add(pod);
+    } else if (params.construct === 'gantry') {
+      // DRYDOCK_7 — long horizontal spine, ribbed perpendicular frames.
+      // Breaks the vertical monotony of the roster. Ship under construction.
+      const len = 16;
+      const ribs = Math.max(5, Math.floor(8 * params.structureDensity + 2));
+      const yC = 2;
+      // Central spine (along X)
+      constructGroup.add(thickSegment(
+        [new THREE.Vector3(-len / 2, yC, 0), new THREE.Vector3(len / 2, yC, 0)],
+        lineMatAmber
+      ));
+      // Lower keel rail
+      constructGroup.add(thickSegment(
+        [new THREE.Vector3(-len / 2, yC - 3, 0), new THREE.Vector3(len / 2, yC - 3, 0)],
+        lineMatDim
+      ));
+      // Ribbed frames: rectangular hoops perpendicular to spine, varying size
+      for (let i = 0; i < ribs; i++) {
+        const x = -len / 2 + (i + 0.5) * (len / ribs);
+        const taper = 1 - Math.abs((i / (ribs - 1)) - 0.5) * 0.8; // fattest in middle
+        const rw = 2.2 + taper * 2.2;
+        const rh = 2.0 + taper * 1.8;
+        const ringPts = [
+          new THREE.Vector3(x, yC + rh, -rw), new THREE.Vector3(x, yC + rh, rw),
+          new THREE.Vector3(x, yC + rh, rw), new THREE.Vector3(x, yC - rh, rw),
+          new THREE.Vector3(x, yC - rh, rw), new THREE.Vector3(x, yC - rh, -rw),
+          new THREE.Vector3(x, yC - rh, -rw), new THREE.Vector3(x, yC + rh, -rw)
+        ];
+        constructGroup.add(thickSegment(ringPts, lineMat));
+        // Spar from spine down to keel at this rib
+        constructGroup.add(thickSegment(
+          [new THREE.Vector3(x, yC, 0), new THREE.Vector3(x, yC - 3, 0)],
+          lineMatDim
+        ));
+      }
+    } else if (params.construct === 'monolith') {
+      // SLAB_0 — single black rectangular slab. Edge wireframe + faint
+      // internal grid. Kubrick. Confidence through emptiness.
+      const w = 5, h = 13, d = 3.2;
+      const yC = 2;
+      const box = new THREE.BoxGeometry(w, h, d);
+      const slab = thickEdges(box, lineMatAmber);
+      box.dispose();
+      slab.position.y = yC;
+      constructGroup.add(slab);
+      // Faint internal grid on the broad faces — both axes scale with density,
+      // so the slab reads from near-empty (low) to a fine data-lattice (high).
+      // The slab itself stays fixed: a monolith's mass is the constant.
+      const divs = Math.max(2, Math.floor(7 * params.structureDensity + 1));
+      const cols = Math.max(1, Math.floor(3 * params.structureDensity));
+      const gridPts = [];
+      for (let i = 1; i < divs; i++) {
+        const yy = yC - h / 2 + i * (h / divs);
+        gridPts.push(
+          new THREE.Vector3(-w / 2, yy, d / 2), new THREE.Vector3(w / 2, yy, d / 2),
+          new THREE.Vector3(-w / 2, yy, -d / 2), new THREE.Vector3(w / 2, yy, -d / 2)
+        );
+      }
+      for (let j = 1; j < cols + 1; j++) {
+        const xx = -w / 2 + j * (w / (cols + 1));
+        gridPts.push(
+          new THREE.Vector3(xx, yC - h / 2, d / 2), new THREE.Vector3(xx, yC + h / 2, d / 2),
+          new THREE.Vector3(xx, yC - h / 2, -d / 2), new THREE.Vector3(xx, yC + h / 2, -d / 2)
+        );
+      }
+      gridPts.push(
+        new THREE.Vector3(w * 0.15, yC - h / 2, d / 2), new THREE.Vector3(w * 0.15, yC + h / 2, d / 2)
+      );
+      // The internal lattice scales with density and reads in the PRIMARY
+      // register — turning the slider up brightens the slab's structure, not
+      // just its background haze. Only the slab's own edges stay amber-keyed.
+      constructGroup.add(thickSegment(gridPts, lineMat));
+    } else if (params.construct === 'reactor') {
+      // CORE_ΩΩ — toroidal containment ring around a suspended central node,
+      // magnetic-bottle struts bridging them. Contained energy reads as threat.
+      const yC = 2;
+      const ringR = 6;
+      // Containment torus (horizontal), amber
+      const torGeo = new THREE.TorusGeometry(ringR, 0.18, 6, 64);
+      const tor = thickEdges(torGeo, lineMatAmber);
+      torGeo.dispose();
+      tor.position.y = yC;
+      tor.rotation.x = Math.PI / 2;
+      constructGroup.add(tor);
+      // A second torus, tilted, for a gyroscopic feel
+      const tor2Geo = new THREE.TorusGeometry(ringR * 0.78, 0.08, 4, 48);
+      const tor2 = thickEdges(tor2Geo, lineMatDim);
+      tor2Geo.dispose();
+      tor2.position.y = yC;
+      tor2.rotation.x = Math.PI / 2.6;
+      tor2.rotation.z = 0.4;
+      constructGroup.add(tor2);
+      // Additional gyroscopic containment rings — count scales with density,
+      // so a denser reactor reads as a more elaborately caged field.
+      const extraRings = Math.max(0, Math.floor(4 * params.structureDensity - 1));
+      for (let k = 0; k < extraRings; k++) {
+        const rr = ringR * (0.5 + 0.12 * k);
+        const rgGeo = new THREE.TorusGeometry(rr, 0.05, 4, 40);
+        const rg = thickEdges(rgGeo, lineMat);
+        rgGeo.dispose();
+        rg.position.y = yC;
+        rg.rotation.x = Math.PI / 2 + (k + 1) * 0.5;
+        rg.rotation.z = (k + 1) * 0.7;
+        constructGroup.add(rg);
+      }
+      // Central suspended core
+      const coreGeo = new THREE.IcosahedronGeometry(1.6, 1);
+      const core = thickEdges(coreGeo, lineMat);
+      coreGeo.dispose();
+      core.position.y = yC;
+      constructGroup.add(core);
+      // Magnetic-bottle struts: from ring inward toward core, top and bottom.
+      // These scale with density and read PRIMARY — more struts = a visibly
+      // brighter, more caged field, not a muted thickening.
+      const struts = Math.max(6, Math.floor(8 * params.structureDensity + 2));
+      const strutPts = [];
+      for (let i = 0; i < struts; i++) {
+        const a = (i / struts) * Math.PI * 2;
+        const rx = Math.cos(a) * ringR, rz = Math.sin(a) * ringR;
+        // bottle curve approximated by two segments meeting above/below core
+        strutPts.push(
+          new THREE.Vector3(rx, yC, rz), new THREE.Vector3(rx * 0.25, yC + 2.2, rz * 0.25),
+          new THREE.Vector3(rx, yC, rz), new THREE.Vector3(rx * 0.25, yC - 2.2, rz * 0.25)
+        );
+      }
+      constructGroup.add(thickSegment(strutPts, lineMat));
+    } else if (params.construct === 'archive') {
+      // STACKS_∞ — a wall of nested rectangular data-cells, receding rows of
+      // identical crypts. Borgesian. Legible repetition, not fractal.
+      const cols = Math.max(3, Math.floor(5 * params.structureDensity + 1));
+      const rows = Math.max(4, Math.floor(6 * params.structureDensity + 2));
+      const cellW = 2.2, cellH = 1.7, cellD = 2.2;
+      const totalW = cols * cellW;
+      const totalH = rows * cellH;
+      const x0 = -totalW / 2;
+      const y0 = 2 - totalH / 2;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cx = x0 + c * cellW + cellW / 2;
+          const cy = y0 + r * cellH + cellH / 2;
+          // Alternate a few "lit" cells in amber for life
+          const lit = ((r * 31 + c * 17) % 7) === 0;
+          const box = new THREE.BoxGeometry(cellW * 0.92, cellH * 0.92, cellD);
+          const cell = thickEdges(box, lit ? lineMatAmber : (((r + c) % 2) ? lineMatDim : lineMat));
+          box.dispose();
+          cell.position.set(cx, cy, 0);
+          constructGroup.add(cell);
+        }
+      }
+    } else if (params.construct === 'antenna') {
+      // BEACON_Σ1 — tall slender mast, guy-wires, dish-rings. Sparse, lonely.
+      // A palate-cleanser construct. Restraint as a shape.
+      const height = 15;
+      const baseY = -4;
+      const topY = baseY + height;
+      // Mast (thin triangular truss approximated by central line + 3 legs)
+      constructGroup.add(thickSegment(
+        [new THREE.Vector3(0, baseY, 0), new THREE.Vector3(0, topY, 0)],
+        lineMatAmber
+      ));
+      const legR = 0.6;
+      const legPts = [];
+      for (let l = 0; l < 3; l++) {
+        const a = (l / 3) * Math.PI * 2;
+        legPts.push(
+          new THREE.Vector3(Math.cos(a) * legR, baseY, Math.sin(a) * legR),
+          new THREE.Vector3(0, topY, 0)
+        );
+      }
+      constructGroup.add(thickSegment(legPts, lineMatDim));
+      // Cross-bracing rungs up the mast
+      const rungs = Math.max(4, Math.floor(7 * params.structureDensity + 2));
+      const rungPts = [];
+      for (let i = 1; i < rungs; i++) {
+        const y = baseY + (i / rungs) * height;
+        const rr = legR * (1 - (i / rungs) * 0.5);
+        for (let l = 0; l < 3; l++) {
+          const a1 = (l / 3) * Math.PI * 2, a2 = ((l + 1) / 3) * Math.PI * 2;
+          rungPts.push(
+            new THREE.Vector3(Math.cos(a1) * rr, y, Math.sin(a1) * rr),
+            new THREE.Vector3(Math.cos(a2) * rr, y, Math.sin(a2) * rr)
+          );
+        }
+      }
+      constructGroup.add(thickSegment(rungPts, lineMat));
+      // Dish-rings near the top — count scales with density
+      const dishCount = Math.max(2, Math.floor(3 * params.structureDensity + 1));
+      for (let k = 0; k < dishCount; k++) {
+        const dy = topY - 1.5 - k * 1.9;
+        const dr = 2.4 - k * 0.45;
+        const dGeo = new THREE.TorusGeometry(Math.max(0.5, dr), 0.04, 4, 36);
+        const dish = thickEdges(dGeo, k === 0 ? lineMat : lineMatDim);
+        dGeo.dispose();
+        dish.position.y = dy;
+        dish.rotation.x = Math.PI / 2.4;
+        constructGroup.add(dish);
+      }
+      // Guy-wires to the ground
+      const guyPts = [];
+      for (let g = 0; g < 3; g++) {
+        const a = (g / 3) * Math.PI * 2 + 0.5;
+        guyPts.push(
+          new THREE.Vector3(0, topY - 4, 0),
+          new THREE.Vector3(Math.cos(a) * 6, baseY, Math.sin(a) * 6)
+        );
+      }
+      constructGroup.add(thickSegment(guyPts, lineMatDim));
+      // Beacon node at the very top
+      const tipGeo = new THREE.OctahedronGeometry(0.4, 0);
+      const tip = thickEdges(tipGeo, lineMatAmber);
+      tipGeo.dispose();
+      tip.position.y = topY;
+      constructGroup.add(tip);
+    } else if (params.construct === 'bastion') {
+      // REDOUBT_α — low star-fort (trace italienne) footprint extruded up.
+      // Angled bastions, geometric defensive perimeter. Pure fortification.
+      const points = Math.max(3, Math.floor(4 * params.structureDensity + 2)); // star points scale with density
+      const rOuter = 7.5, rInner = 4.2;
+      const wallH = 3.6;
+      const yBot = -1;          // raised so the fort's mass centers near y=2
+      const yTop = yBot + wallH;
+      const ringTop = [], ringBot = [];
+      const segs = points * 2;
+      for (let i = 0; i < segs; i++) {
+        const a = (i / segs) * Math.PI * 2;
+        const rr = (i % 2 === 0) ? rOuter : rInner;
+        ringTop.push(new THREE.Vector3(Math.cos(a) * rr, yTop, Math.sin(a) * rr));
+        ringBot.push(new THREE.Vector3(Math.cos(a) * rr, yBot, Math.sin(a) * rr));
+      }
+      const wallPts = [];
+      for (let i = 0; i < segs; i++) {
+        const n = (i + 1) % segs;
+        // top edge, bottom edge, vertical
+        wallPts.push(ringTop[i], ringTop[n]);
+        wallPts.push(ringBot[i], ringBot[n]);
+        wallPts.push(ringBot[i], ringTop[i]);
+      }
+      constructGroup.add(thickSegment(wallPts, lineMatAmber));
+      // Inner keep — a smaller raised block at center
+      const keepGeo = new THREE.BoxGeometry(3, 2.4, 3);
+      const keep = thickEdges(keepGeo, lineMat);
+      keepGeo.dispose();
+      keep.position.y = yTop + 1.2;
+      constructGroup.add(keep);
+      // Parapet ticks along the top ring
+      const tickPts = [];
+      for (let i = 0; i < segs; i++) {
+        const p = ringTop[i];
+        tickPts.push(p.clone(), new THREE.Vector3(p.x, p.y + 0.7, p.z));
+      }
+      constructGroup.add(thickSegment(tickPts, lineMatDim));
+    } else if (params.construct === 'spindle') {
+      // LOOM_φ — vertical axis with a tensioned helix of strands wound around
+      // it. Rotation reads as function. The elegant pick; watched closely.
+      const height = 14;
+      const baseY = -4;
+      const axisTop = baseY + height;
+      const rTop = 0.4, rMid = 4.0;
+      // Central axis
+      constructGroup.add(thickSegment(
+        [new THREE.Vector3(0, baseY, 0), new THREE.Vector3(0, axisTop, 0)],
+        lineMatAmber
+      ));
+      // Helical strands wound around — bulging in the middle (spindle profile)
+      const strands = Math.max(3, Math.floor(5 * params.structureDensity + 1));
+      const turns = 2.5;
+      const steps = 60;
+      for (let s = 0; s < strands; s++) {
+        const phase = (s / strands) * Math.PI * 2;
+        const helixPts = [];
+        for (let i = 0; i <= steps; i++) {
+          const tt = i / steps;
+          const y = baseY + tt * height;
+          // spindle bulge: radius peaks at mid-height
+          const bulge = Math.sin(tt * Math.PI);
+          const rr = rTop + (rMid - rTop) * bulge;
+          const ang = phase + tt * turns * Math.PI * 2;
+          helixPts.push(new THREE.Vector3(Math.cos(ang) * rr, y, Math.sin(ang) * rr));
+        }
+        // convert polyline to segment pairs
+        const segPts = [];
+        for (let i = 0; i < helixPts.length - 1; i++) {
+          segPts.push(helixPts[i], helixPts[i + 1]);
+        }
+        constructGroup.add(thickSegment(segPts, lineMat));
+      }
+      // Equator ring at the widest point
+      const eqGeo = new THREE.TorusGeometry(rMid, 0.04, 4, 40);
+      const eq = thickEdges(eqGeo, lineMatDim);
+      eqGeo.dispose();
+      eq.position.y = baseY + height / 2;
+      eq.rotation.x = Math.PI / 2;
+      constructGroup.add(eq);
+    } else if (params.construct === 'interchange') {
+      // JUNCTION_4x4 — stacked-highway knot of broad ramps looping over each
+      // other, frozen. Reads instantly; implies data moving through a place.
+      const yC = 2;
+      const decks = Math.max(2, Math.floor(3 * params.structureDensity + 1));
+      // Straight broad decks at alternating heights & orientations
+      for (let d = 0; d < decks; d++) {
+        const dy = yC - 3 + d * 3;
+        const ang = (d % 2) * Math.PI / 2 + d * 0.3;
+        const len = 9, wide = 1.6;
+        const dirX = Math.cos(ang), dirZ = Math.sin(ang);
+        const perpX = -Math.sin(ang), perpZ = Math.cos(ang);
+        const deckPts = [];
+        // two rails + cross ties
+        for (const side of [-1, 1]) {
+          deckPts.push(
+            new THREE.Vector3(dirX * -len + perpX * wide * side, dy, dirZ * -len + perpZ * wide * side),
+            new THREE.Vector3(dirX * len + perpX * wide * side, dy, dirZ * len + perpZ * wide * side)
+          );
+        }
+        const ties = 8;
+        for (let i = 0; i <= ties; i++) {
+          const tt = (i / ties) * 2 - 1;
+          deckPts.push(
+            new THREE.Vector3(dirX * len * tt + perpX * wide, dy, dirZ * len * tt + perpZ * wide),
+            new THREE.Vector3(dirX * len * tt - perpX * wide, dy, dirZ * len * tt - perpZ * wide)
+          );
+        }
+        constructGroup.add(thickSegment(deckPts, d === 0 ? lineMatAmber : lineMat));
+      }
+      // Looping cloverleaf ramps connecting deck ends (helical quarter-arcs)
+      const rampPts = [];
+      const rampCount = 4;
+      for (let r = 0; r < rampCount; r++) {
+        const baseA = (r / rampCount) * Math.PI * 2;
+        const cr = 5.5;
+        const cx = Math.cos(baseA) * cr * 0.6, cz = Math.sin(baseA) * cr * 0.6;
+        const steps = 16;
+        let prev = null;
+        for (let i = 0; i <= steps; i++) {
+          const tt = i / steps;
+          const a = baseA + tt * Math.PI * 1.2;
+          const rr = 2.6;
+          const y = yC - 3 + tt * (decks - 1) * 3;
+          const p = new THREE.Vector3(cx + Math.cos(a) * rr, y, cz + Math.sin(a) * rr);
+          if (prev) rampPts.push(prev, p);
+          prev = p;
+        }
+      }
+      constructGroup.add(thickSegment(rampPts, lineMatDim));
+      // Central support pylons
+      const pyPts = [];
+      for (let p = 0; p < 4; p++) {
+        const a = (p / 4) * Math.PI * 2;
+        const px = Math.cos(a) * 2.5, pz = Math.sin(a) * 2.5;
+        pyPts.push(new THREE.Vector3(px, yC - 4, pz), new THREE.Vector3(px, yC + (decks - 1) * 3 - 2, pz));
+      }
+      constructGroup.add(thickSegment(pyPts, lineMatDim));
+    } else if (params.construct === 'malevich') {
+      // SUPREMUS_0 — Suprematist suspension. A dominant canted quad with
+      // satellite slivers floating off-axis around an empty center. Wireframe
+      // can't fill planes, so each quad is HATCHED to read as a solid mass.
+      // Composition is deliberately unbalanced — the float is the gesture.
+      const yC = 2;
+      // Density scales two things: how dense each plane's hatching is (so the
+      // planes read more/less solid), and how many satellite quads drift in
+      // the field. Low density = stark minimal (square + sliver); high = a
+      // busier constellation. Hatch lines per world-unit of plane width:
+      const hatchPerUnit = 1.0 + params.structureDensity * 1.6;
+      const hN = (w) => Math.max(3, Math.round(w * hatchPerUnit));
+
+      // Helper: build a quad (as a tilted plane) and hatch it densely so it
+      // reads as a filled plane rather than an empty frame. Returns nothing;
+      // adds frame + hatch fill to constructGroup.
+      function suprematistPlane(cx, cy, cz, w, h, rotX, rotY, rotZ, mat, hatchMat, hatchN) {
+        // local quad corners in plane space (XY), then rotate into world
+        const hw = w / 2, hh = h / 2;
+        const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+        const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+        const cosZ = Math.cos(rotZ), sinZ = Math.sin(rotZ);
+        const tx = (x, y, z) => {
+          // Z then Y then X rotation
+          let X = x * cosZ - y * sinZ, Y = x * sinZ + y * cosZ, Z = z;
+          let X2 = X * cosY + Z * sinY, Z2 = -X * sinY + Z * cosY; X = X2; Z = Z2;
+          let Y2 = Y * cosX - Z * sinX, Z3 = Y * sinX + Z * cosX; Y = Y2; Z = Z3;
+          return new THREE.Vector3(cx + X, cy + Y, cz + Z);
+        };
+        // Frame edges
+        const c00 = tx(-hw, -hh, 0), c10 = tx(hw, -hh, 0), c11 = tx(hw, hh, 0), c01 = tx(-hw, hh, 0);
+        constructGroup.add(thickSegment([c00, c10, c10, c11, c11, c01, c01, c00], mat));
+        // Hatch fill — parallel lines across the quad (dense = reads as solid)
+        const hatchPts = [];
+        for (let i = 1; i < hatchN; i++) {
+          const u = -hw + (i / hatchN) * w;
+          hatchPts.push(tx(u, -hh, 0), tx(u, hh, 0));
+        }
+        constructGroup.add(thickSegment(hatchPts, hatchMat));
+      }
+
+      // The dominant black square — large, canted, off-center & lifted. Always
+      // present (it's the anchor; the composition can't lose it).
+      suprematistPlane(-1.5, yC + 2.5, 0, 8, 8, 0.25, 0.5, 0.35, lineMat, lineMatDim, hN(8));
+
+      // A long thin sliver crossing it on a steep diagonal (amber accent — the
+      // single "charged" element, à la the red wedge in a black-square field).
+      suprematistPlane(2.0, yC - 1.0, 1.5, 9, 1.1, -0.15, 0.3, -0.9, lineMatAmber, lineMatAmber, hN(9));
+
+      // Satellite quads, drawn from a curated pool. Density decides how many of
+      // them appear — taken in order, so the composition degrades gracefully to
+      // stark-minimal at low density rather than scattering randomly.
+      const satPool = [
+        [4.5,  yC + 3.5, -1.0, 2.6, 2.6,  0.4, -0.3, 0.15],
+        [-4.5, yC - 3.0,  0.5, 3.4, 1.4, -0.3,  0.4, 0.7 ],
+        [3.2,  yC - 3.8, -1.8, 1.8, 1.8,  0.5,  0.6, -0.4],
+        [-3.6, yC + 4.6,  1.2, 1.2, 4.2, -0.2, -0.5, 0.25],
+        [5.6,  yC - 0.5,  0.8, 2.2, 0.9,  0.3,  0.2, -1.1],
+        [-1.2, yC - 4.6, -0.6, 3.0, 0.8, -0.4,  0.3, 0.55]
+      ];
+      const satCount = Math.max(1, Math.min(satPool.length, Math.round(params.structureDensity * 4)));
+      for (let i = 0; i < satCount; i++) {
+        const s = satPool[i];
+        suprematistPlane(s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], lineMat, lineMatDim, hN(Math.max(s[3], s[4])));
+      }
+
+      // A single floating vertex node — a lone point, the Suprematist "cosmos"
+      // mote. No ground line, no axis: nothing anchors this to a floor.
+      const moteGeo = new THREE.OctahedronGeometry(0.35, 0);
+      const mote = thickEdges(moteGeo, lineMatAmber);
+      moteGeo.dispose();
+      mote.position.set(-3.0, yC + 5.5, -2.0);
+      constructGroup.add(mote);
     } else {
       // Unknown shape — fallback to spire to be safe
       const geo = new THREE.IcosahedronGeometry(3, 0);
@@ -2670,6 +3194,17 @@ registerScene('neuro', ({ stage, controlsEl }) => {
         case 'pyramid': r = 5; yRange = 8; yOffset = 0; break;
         case 'hub': r = 5; break;
         case 'crystal': r = 3; yRange = 10; break;
+        case 'vault': r = 7; yRange = 8; break;
+        case 'arcology': r = 6; yRange = 12; yOffset = 0; break;
+        case 'gantry': r = 7; yRange = 5; break;
+        case 'monolith': r = 3; yRange = 11; break;
+        case 'reactor': r = 6; yRange = 6; break;
+        case 'archive': r = 5; yRange = 8; break;
+        case 'antenna': r = 3; yRange = 13; yOffset = 1; break;
+        case 'bastion': r = 7; yRange = 5; yOffset = 0; break;
+        case 'spindle': r = 4; yRange = 12; break;
+        case 'interchange': r = 7; yRange = 7; break;
+        case 'malevich': r = 5; yRange = 9; yOffset = 3; break;
         default: r = 4; break;
       }
       const theta = Math.random() * Math.PI * 2;
@@ -3599,6 +4134,17 @@ registerScene('neuro', ({ stage, controlsEl }) => {
       }
       case 'hub': return { yMin: -6, yMax: 10 };
       case 'crystal': return { yMin: -4.5, yMax: 10.5 };
+      case 'vault': return { yMin: -6.5, yMax: 10.5 };
+      case 'arcology': return { yMin: -10, yMax: 7.5 };
+      case 'gantry': return { yMin: -1.5, yMax: 6.5 };
+      case 'monolith': return { yMin: -4.5, yMax: 8.5 };
+      case 'reactor': return { yMin: -5, yMax: 9 };
+      case 'archive': return { yMin: -5, yMax: 9 };
+      case 'antenna': return { yMin: -4, yMax: 11.5 };
+      case 'bastion': return { yMin: -1.5, yMax: 6 };
+      case 'spindle': return { yMin: -4.5, yMax: 10.5 };
+      case 'interchange': return { yMin: -2, yMax: 8 };
+      case 'malevich': return { yMin: -3, yMax: 9 };
       default: return { yMin: -4, yMax: 8 };
     }
   }
@@ -3615,6 +4161,17 @@ registerScene('neuro', ({ stage, controlsEl }) => {
       case 'pyramid': return 7;
       case 'hub': return 7.5;
       case 'crystal': return 5;
+      case 'vault': return 8.5;
+      case 'arcology': return 6.5;
+      case 'gantry': return 8.5;
+      case 'monolith': return 3.5;
+      case 'reactor': return 6.5;
+      case 'archive': return 6.5;
+      case 'antenna': return 6;
+      case 'bastion': return 8;
+      case 'spindle': return 4.5;
+      case 'interchange': return 9;
+      case 'malevich': return 7;
       default: return 5;
     }
   }
@@ -6596,7 +7153,18 @@ registerScene('neuro', ({ stage, controlsEl }) => {
       { value: 'gridcube', label: 'grid cube' },
       { value: 'pyramid', label: 'stepped pyramid' },
       { value: 'hub', label: 'radial hub' },
-      { value: 'crystal', label: 'crystal stack' }
+      { value: 'crystal', label: 'crystal stack' },
+      { value: 'vault', label: 'blast vault' },
+      { value: 'arcology', label: 'inverted arcology' },
+      { value: 'gantry', label: 'drydock gantry' },
+      { value: 'monolith', label: 'monolith slab' },
+      { value: 'reactor', label: 'containment reactor' },
+      { value: 'archive', label: 'data archive' },
+      { value: 'antenna', label: 'beacon mast' },
+      { value: 'bastion', label: 'star bastion' },
+      { value: 'spindle', label: 'helix spindle' },
+      { value: 'interchange', label: 'highway interchange' },
+      { value: 'malevich', label: 'suprematist float' }
     ],
     onChange: (v) => { params.construct = v; clearScene(); buildConstruct(); }
   });
@@ -6946,7 +7514,18 @@ registerScene('neuro', ({ stage, controlsEl }) => {
           params.construct === 'gridcube' ? 'CUBE_Σ_8' :
           params.construct === 'pyramid' ? 'ZIGGURAT_Γ' :
           params.construct === 'hub' ? 'HUB_Φ_∞' :
-          params.construct === 'crystal' ? 'LATTICE_Ψ4' : 'UNKNOWN_???';
+          params.construct === 'crystal' ? 'LATTICE_Ψ4' :
+          params.construct === 'vault' ? 'CRYPT_Δ0' :
+          params.construct === 'arcology' ? 'HIVE_β9' :
+          params.construct === 'gantry' ? 'DRYDOCK_7' :
+          params.construct === 'monolith' ? 'SLAB_0' :
+          params.construct === 'reactor' ? 'CORE_ΩΩ' :
+          params.construct === 'archive' ? 'STACKS_∞' :
+          params.construct === 'antenna' ? 'BEACON_Σ1' :
+          params.construct === 'bastion' ? 'REDOUBT_α' :
+          params.construct === 'spindle' ? 'LOOM_φ' :
+          params.construct === 'interchange' ? 'JUNCTION_4x4' :
+          params.construct === 'malevich' ? 'SUPREMUS_0' : 'UNKNOWN_???';
         const gx = Math.floor(Math.sin(t * 0.04) * 2400);
         const gy = Math.floor(Math.cos(t * 0.05) * 2400);
         hudTR.querySelector('[data-bind="coord"]').textContent =
@@ -7026,7 +7605,7 @@ registerScene('neuro', ({ stage, controlsEl }) => {
       applyPalette();
 
       // 1b) Randomize the construct shape (the other dropdown we DO touch).
-      const constructs = ['fortress', 'lattice', 'spire', 'ringtower', 'gridcube', 'pyramid', 'hub', 'crystal'];
+      const constructs = ['fortress', 'lattice', 'spire', 'ringtower', 'gridcube', 'pyramid', 'hub', 'crystal', 'vault', 'arcology', 'gantry', 'monolith', 'reactor', 'archive', 'antenna', 'bastion', 'spindle', 'interchange', 'malevich'];
       params.construct = constructs[Math.floor(Math.random() * constructs.length)];
       buildConstruct(); // HUD designation auto-updates each frame from params.construct
 
